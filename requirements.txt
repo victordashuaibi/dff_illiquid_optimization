@@ -1,6 +1,11 @@
 # Core ML
 torch>=2.0.0
-numpy>=1.24.0
+# Pin numpy<2 because torch 2.2 and xgboost 2.1 in this venv are compiled
+# against the numpy 1.x C ABI; pairing them with numpy>=2 leaves
+# torch.Tensor.numpy() / torch.from_numpy raising "Numpy is not available"
+# and can also segfault when torch and xgboost are loaded in the same
+# process. Lift the upper bound once we move to torch>=2.4 / xgboost>=2.2.
+numpy>=1.24.0,<2.0
 pandas>=2.0.0
 scikit-learn>=1.3.0
 scipy>=1.10.0
