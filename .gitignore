@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Data and outputs (live in Drive, not git)
+data/raw/
+data/processed/
+data/external/
+results/
+checkpoints/
+*.pkl
+*.parquet
+*.csv
+*.h5
+
+# Logs
+logs/
+wandb/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Colab
+.config/
+
+# Secrets
+.env
+*.pem
+secrets/

@@ -1,0 +1,41 @@
+# Default experiment config
+seed: 42
+device: cuda
+
+data:
+  source: yahoo
+  start_date: "2018-01-01"
+  end_date: "2024-12-31"
+  universe_size: 30
+  train_ratio: 0.7
+  val_ratio: 0.15
+
+backbone:
+  type: xgboost
+  xgb:
+    max_depth: 4
+    n_estimators: 100
+    learning_rate: 0.05
+  nn:
+    hidden_dim: 64
+    n_layers: 3
+    dropout: 0.1
+
+optimizer:
+  type: markowitz
+  risk_aversion: 1.0
+  long_only: true
+  budget: 1.0
+
+dff:
+  enabled: true
+  epsilon: 0.3
+  loss: spo_plus
+  lr: 1.0e-3
+  epochs: 50
+  batch_size: 32
+
+logging:
+  output_dir: results/
+  save_predictions: true
+  save_checkpoints: true
