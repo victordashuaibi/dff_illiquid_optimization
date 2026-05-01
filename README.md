@@ -21,6 +21,11 @@ source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+## Interface contract
+
+All API contracts between modules are defined in [docs/INTERFACE.md](docs/INTERFACE.md).
+Any change to module interfaces must update that document first.
+
 ## Repo structure
 
 ```
