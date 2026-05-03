@@ -18,11 +18,15 @@ data/raw/
 data/processed/
 data/external/
 results/
+runs/
 checkpoints/
 *.pkl
 *.parquet
 *.csv
 *.h5
+
+# Claude Code session state (worktrees, settings, locks)
+.claude/
 
 # Logs
 logs/

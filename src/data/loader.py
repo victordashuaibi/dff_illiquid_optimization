@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 from sklearn.covariance import LedoitWolf
 
+from src.data import features as _features
 from src.data.features import FEATURE_COLS, TARGET_COL, make_features
 
 
@@ -275,13 +276,51 @@ class PortfolioDataLoader:
                 )
 
     # ------------------------------------------------------------------ #
-    # Train / test split (by calendar year)
+    # Train / test split (by calendar year, with optional embargo)
     # ------------------------------------------------------------------ #
     @staticmethod
     def split(
-        instances: list[Instance], test_year: int
+        instances: list[Instance],
+        test_year: int,
+        embargo_days: Optional[int] = None,
     ) -> tuple[list[Instance], list[Instance]]:
-        """Time-ordered split: train on dates with year < ``test_year``, test on the year itself."""
+        """Time-ordered split with embargo on both sides of the boundary.
+
+        Train = instances dated in years < ``test_year``;
+        test = instances dated in year == ``test_year``.
+
+        After the year split, drops the last ``embargo_days`` *train*
+        instances (their forward-return target uses prices that fall in the
+        test year — direct label leakage) and the first ``embargo_days``
+        *test* instances (their rolling-window features use prices from the
+        train window — feature leakage). The cut is temporal: each side is
+        sorted by ``metadata["date"]`` ascending, then sliced.
+
+        Embargo formula
+        ---------------
+        ``embargo_days`` defaults to
+        ``max(features.TARGET_HORIZON, features.MAX_FEATURE_LOOKBACK)``,
+        i.e. the larger of the forward-return horizon and the longest
+        rolling/lag window in :data:`src.data.features.FEATURE_COLS`. Both
+        constants live on :mod:`src.data.features` so a future change to
+        either one (e.g. quarterly rebalance with ``TARGET_HORIZON=63``)
+        automatically widens the embargo.
+
+        Pass an explicit non-negative ``int`` to override; pass ``0`` to
+        recover the legacy no-embargo behaviour (only for tests / leakage
+        ablations).
+
+        Errors
+        ------
+        Raises ``ValueError`` if ``embargo_days`` is negative, or if the
+        embargo would empty either side of the split (better to fail loudly
+        than silently produce a 0-instance dataset).
+        """
+        if embargo_days is None:
+            embargo_days = max(_features.TARGET_HORIZON, _features.MAX_FEATURE_LOOKBACK)
+        if embargo_days < 0:
+            raise ValueError(f"embargo_days must be >= 0, got {embargo_days}")
+
         train, test = [], []
         for inst in instances:
             year = pd.Timestamp(inst.metadata["date"]).year
@@ -289,4 +328,26 @@ class PortfolioDataLoader:
                 train.append(inst)
             elif year == test_year:
                 test.append(inst)
+
+        # Sort each side by decision date so the embargo cut is temporal,
+        # not insertion-order. ``metadata["date"]`` is the (X_t, c_t) date.
+        train.sort(key=lambda inst: pd.Timestamp(inst.metadata["date"]))
+        test.sort(key=lambda inst: pd.Timestamp(inst.metadata["date"]))
+
+        if embargo_days > 0:
+            if len(train) <= embargo_days:
+                raise ValueError(
+                    f"embargo_days={embargo_days} would empty the train set "
+                    f"(only {len(train)} pre-test_year instances available). "
+                    f"Widen the date range or shrink embargo_days."
+                )
+            if len(test) <= embargo_days:
+                raise ValueError(
+                    f"embargo_days={embargo_days} would empty the test set "
+                    f"(only {len(test)} test_year={test_year} instances available). "
+                    f"Widen the date range or shrink embargo_days."
+                )
+            train = train[:-embargo_days]
+            test = test[embargo_days:]
+
         return train, test
