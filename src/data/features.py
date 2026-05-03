@@ -12,10 +12,21 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-TARGET_COL = "ret_fwd_21d"
+# Forward-return horizon (trading days) used to build :data:`TARGET_COL`.
+# The loader reads this when computing the train/test embargo so the gap
+# tracks the actual leakage horizon — see ``PortfolioDataLoader.split``.
+TARGET_HORIZON: int = 21
+
+# Longest rolling/lag window used by ``_build_features_one_ticker`` (mirrors
+# the ``rolling(20)`` calls and the ``shift(20)`` lag-return). The loader
+# reads this for the embargo computation; bump it whenever a longer window
+# is added to FEATURE_COLS.
+MAX_FEATURE_LOOKBACK: int = 20
+
+TARGET_COL = f"ret_fwd_{TARGET_HORIZON}d"
 
 FEATURE_COLS: list[str] = (
-    [f"ret_lag{lag}" for lag in range(1, 21)]
+    [f"ret_lag{lag}" for lag in range(1, MAX_FEATURE_LOOKBACK + 1)]
     + [
         "ret_mean5", "ret_mean10", "ret_mean20",
         "ret_vol5", "ret_vol10", "ret_vol20",
@@ -37,11 +48,11 @@ def _build_features_one_ticker(g: pd.DataFrame) -> pd.DataFrame:
     """Compute all per-ticker features for a single sorted-by-Date frame."""
     g = g.sort_values("Date").copy()
 
-    # --- Target: forward 21-day simple return (uses .shift(-21) on purpose).
-    g["ret_fwd_21d"] = g["Adj Close"].shift(-21) / g["Adj Close"] - 1
+    # --- Target: forward TARGET_HORIZON-day simple return (uses negative shift on purpose).
+    g[TARGET_COL] = g["Adj Close"].shift(-TARGET_HORIZON) / g["Adj Close"] - 1
 
-    # --- Lag returns 1..20.
-    for lag in range(1, 21):
+    # --- Lag returns 1..MAX_FEATURE_LOOKBACK.
+    for lag in range(1, MAX_FEATURE_LOOKBACK + 1):
         g[f"ret_lag{lag}"] = g["Return"].shift(lag)
 
     # --- Rolling return statistics (mean / vol) over 5/10/20-day windows.
